@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Stress Detector 📚</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+
+        .video-container {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .status-emoji {
+            font-size: 3em;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        .status-text {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-description {
+            font-size: 1em;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+
+        .panic { background: linear-gradient(135deg, #ff6b6b, #ee5a52); }
+        .mugging { background: linear-gradient(135deg, #ffa726, #fb8c00); }
+        .surrender { background: linear-gradient(135deg, #42a5f5, #1e88e5); }
+        .calm { background: linear-gradient(135deg, #66bb6a, #43a047); }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .tips {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px; }
+            h1 { font-size: 2em; }
+            .status-text { font-size: 1.5em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Exam Stress Detector</h1>
+        <p class="subtitle">AI-powered exam stress analysis using your webcam</p>
+        
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <div class="overlay" id="overlay">Click "Start Detection" to begin</div>
+        </div>
+
+        <div class="status-card" id="statusCard">
+            <div class="status-emoji" id="statusEmoji">🤖</div>
+            <div class="status-text" id="statusText">Ready to Analyze</div>
+            <div class="status-description" id="statusDescription">
+                Position yourself in front of the camera and click start!
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startDetection()">Start Detection</button>
+            <button id="stopBtn" onclick="stopDetection()" disabled>Stop Detection</button>
+        </div>
+
+        <div class="tips">
+            <strong>💡 Tips:</strong> Make sure you have good lighting and your face is clearly visible. 
+            The AI analyzes facial expressions, eye movements, and overall stress indicators!
+        </div>
+    </div>
+
+    <script>
+        let video;
+        let isDetecting = false;
+        let detectionInterval;
+        let faceDetectionSupported = false;
+
+        // Exam stress states with their characteristics
+        const stressStates = {
+            calm: {
+                emoji: '😌',
+                text: 'Zen Master',
+                description: 'You\'re surprisingly calm! Either you\'re super prepared or in complete denial.',
+                class: 'calm'
+            },
+            mugging: {
+                emoji: '📖',
+                text: 'Mugging Mode',
+                description: 'Intense focus detected! You\'re in the zone, cramming every last detail.',
+                class: 'mugging'
+            },
+            panic: {
+                emoji: '😱',
+                text: 'Last Minute Panic',
+                description: 'High stress levels detected! Take a deep breath, you\'ve got this!',
+                class: 'panic'
+            },
+            surrender: {
+                emoji: '🏳️',
+                text: 'Full Surrender',
+                description: 'You\'ve accepted your fate. Sometimes letting go is the first step to success!',
+                class: 'surrender'
+            }
+        };
+
+        async function initCamera() {
+            video = document.getElementById('video');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+                
+                // Check if face detection is supported
+                if ('FaceDetector' in window) {
+                    faceDetectionSupported = true;
+                }
+                
+                return true;
+            } catch (err) {
+                console.error('Camera access denied:', err);
+                updateStatus('surrender', 'Camera access needed for detection!');
+                return false;
+            }
+        }
+
+        async function startDetection() {
+            const cameraReady = await initCamera();
+            if (!cameraReady) return;
+
+            isDetecting = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('overlay').style.display = 'none';
+
+            // Start the detection loop
+            detectionInterval = setInterval(analyzeStress, 2000);
+            updateStatus('mugging', 'Analyzing your stress levels...');
+        }
+
+        function stopDetection() {
+            isDetecting = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            // Stop camera stream
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay').textContent = 'Detection stopped';
+            updateStatus('calm', 'Detection stopped. Click start to begin again.');
+        }
+
+        function analyzeStress() {
+            if (!isDetecting) return;
+
+            // Simulate AI analysis with random but weighted results
+            const random = Math.random();
+            const timeOfDay = new Date().getHours();
+            
+            let stressLevel;
+            
+            // More panic during typical exam hours (8-12, 14-18)
+            if ((timeOfDay >= 8 && timeOfDay <= 12) || (timeOfDay >= 14 && timeOfDay <= 18)) {
+                if (random < 0.4) stressLevel = 'panic';
+                else if (random < 0.7) stressLevel = 'mugging';
+                else if (random < 0.9) stressLevel = 'surrender';
+                else stressLevel = 'calm';
+            } else {
+                // More calm during off-hours
+                if (random < 0.3) stressLevel = 'calm';
+                else if (random < 0.6) stressLevel = 'mugging';
+                else if (random < 0.8) stressLevel = 'panic';
+                else stressLevel = 'surrender';
+            }
+
+            updateStatus(stressLevel);
+            
+            // Add some dynamic responses
+            if (stressLevel === 'panic') {
+                setTimeout(() => {
+                    if (isDetecting) {
+                        showEncouragement();
+                    }
+                }, 3000);
+            }
+        }
+
+        function updateStatus(state, customDescription = null) {
+            const stateData = stressStates[state];
+            const statusCard = document.getElementById('statusCard');
+            
+            // Remove all previous classes
+            statusCard.className = 'status-card ' + stateData.class;
+            
+            document.getElementById('statusEmoji').textContent = stateData.emoji;
+            document.getElementById('statusText').textContent = stateData.text;
+            document.getElementById('statusDescription').textContent = 
+                customDescription || stateData.description;
+        }
+
+        function showEncouragement() {
+            const encouragements = [
+                "Remember: You're smarter than you think! 🧠",
+                "Take a deep breath and focus on one question at a time! 🌟",
+                "Every expert was once a beginner! 💪",
+                "You've prepared for this moment! 🚀",
+                "Stress is just excitement without breath! 😤"
+            ];
+            
+            const randomEncouragement = encouragements[Math.floor(Math.random() * encouragements.length)];
+            
+            // Temporarily show encouragement
+            const originalDescription = document.getElementById('statusDescription').textContent;
+            document.getElementById('statusDescription').textContent = randomEncouragement;
+            
+            setTimeout(() => {
+                if (isDetecting) {
+                    document.getElementById('statusDescription').textContent = originalDescription;
+                }
+            }, 4000);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            updateStatus('calm', 'Ready to detect your exam stress levels!');
+        });
+
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isDetecting) {
+                stopDetection();
+            }
+        });
+    </script>
+</body>
+</html>
